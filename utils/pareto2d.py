@@ -72,6 +72,7 @@ class Pareto2d:
 
 
 
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import numpy as np
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     #random.seed = 4
 
     mu, sigma = 0, 0.1  # mean and standard deviation
-    sample_len = 200
+    sample_len = 100
     ws = np.random.normal(mu, sigma, sample_len)  # [0,1, -1, 0]
     ks = np.random.normal(mu, sigma+8, sample_len)  # [1,0, -1, 0.5]
 

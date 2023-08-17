@@ -5,4 +5,5 @@ from .ECG_getter import get_mini_ECG
 from .interpolator_1d import InterpolationSegment
 from .extremum_finder import ExtremumFinder
 from .distr import Distr, get_distr_of_min_statistics, get_distr_of_max_statistics
+from .pareto2d import Pareto2d
 

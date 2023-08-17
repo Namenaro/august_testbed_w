@@ -25,3 +25,5 @@ def draw_ECG(ax, signal):
     ax.set_xticks(range(0, len(signal),5))
     ax.grid(which='major', axis='both', linestyle='--', alpha=0.75)
     ax.plot(signal, 'o', label='vals', color="black",  markersize=2)
+
+
