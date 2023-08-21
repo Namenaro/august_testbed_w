@@ -38,7 +38,7 @@ def get_mini_ECG():
     full_signal = get_signal()
     step = 1
     new_len = 120
-    new_indexes = list(range(100,  len(full_signal), step))
+    new_indexes = list(range(180,  len(full_signal), step))
     new_signal = list([full_signal[i] for i in new_indexes])
     return new_signal[0:new_len]
 

@@ -1,4 +1,4 @@
-from utils import Pareto2d, Distr, get_distr_of_min_statistics, mix_list, make_arrows, ExtremumFinder
+from utils import Pareto2d, Distr, get_distr_of_min_statistics, mix_list, make_arrows, ExtremumFinder, get_mini_ECG, draw_ECG
 from scene import Scene
 
 import matplotlib.pyplot as plt
@@ -79,45 +79,42 @@ def get_interpolation_error(index1, index2, bassin_vals):
 
 
 
-def visualise_on_signal(ws, ks, bassin_vals, index_1):
+def visualise_on_signal(ws, ks, bassin_vals, new_allowed_indexes):
     fig, ax = plt.subplots(nrows=3, sharex=True)
     x = list(range(len(bassin_vals)))
     ax[0].plot(x, bassin_vals, '-o', color='black', label='bassin', alpha=0.5)
-    ax[0].vlines(x=index_1, ymin=0, ymax=max(bassin_vals), colors='orange', lw=1, alpha=0.5)
+
     make_arrows(ax[0])
 
 
-    indexes_of_maxes_w = ExtremumFinder(ws).get_coords_maxes()
-    indexes_of_maxes_w = list([indexes_of_maxes_w[i] + index_1 for i in range(len(indexes_of_maxes_w))])
-    for index in indexes_of_maxes_w:
-        ax[0].scatter(index, bassin_vals[index], color='red',  s=60)
-    ax[0].legend(frameon=False)
-
-    x = list(range(index_1, len(bassin_vals)))
-    ax[1].plot(x, ws, '-o', label='w (index2)')
-    make_arrows(ax[1])
+    for i in range(len(ws)):
+        index = new_allowed_indexes[i]
+        w = ws[i]
+        ax[1].scatter(index, w, color='red',  s=60)
     ax[1].legend(frameon=False)
 
+    for i in range(len(ks)):
+        index = new_allowed_indexes[i]
+        k = ks[i]
+        ax[2].scatter(index, k, color='green', s=60)
 
-    ax[2].plot(x, ks, '-o', label='k (index2)')
-    make_arrows(ax[2])
     ax[2].legend(frameon=False)
 
     plt.show()
 
 
 
-def visualise_pareto(ws, ks, pareto_indexes, bassin_vals, index1):
+def visualise_pareto(ws, ks, global_pareto_indexes, local_indexes_pareto, bassin_vals):
     fig, ax = plt.subplots()
     x = list(range(len(bassin_vals)))
     ax.plot(x, bassin_vals)
     make_arrows(ax)
-    for index in pareto_indexes:
-        ax.vlines(x=index + index1 , ymin=0, ymax=max(bassin_vals), colors='green', lw=1, alpha=0.5)
+    for index in global_pareto_indexes:
+        ax.vlines(x=index , ymin=0, ymax=max(bassin_vals), colors='green', lw=1, alpha=0.5)
         #text(index, max(bassin_vals) / 2, str(ws[index]), rotation=0, verticalalignment='center')
     plt.show()
 
-    draw_pareto_on_plane(ws, ks, pareto_indexes)
+    draw_pareto_on_plane(ws, ks, local_indexes_pareto)
 
 def draw_pareto_on_plane(ws, ks, pareto_indexes):
     fig, ax = plt.subplots()
@@ -132,7 +129,7 @@ def draw_pareto_on_plane(ws, ks, pareto_indexes):
 
 
 
-def one_step_recognision():
+def toy_one_step_recognition_vis():
     bassin_vals = [0, 1, 2, 4, 2, 1, 0, -1.2, 1, 1.5, 0, 0, 1,0, 0, -1, 1.5, 2]
     print("bassin_len = " +str(len(bassin_vals)))
     index_1 = 3
@@ -145,9 +142,8 @@ def one_step_recognision():
 
     ws = []
     ks = []
-    for real_index in range(index_1, len(bassin_vals)):
-        if real_index == 12:
-            print("!!")
+    allowed_indexes = list(range(index_1, len(bassin_vals)))
+    for real_index in allowed_indexes:
         print(real_index)
         w = eval_w_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
         k = eval_k_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
@@ -161,6 +157,59 @@ def one_step_recognision():
     pareto_indexes = pareto.process_ws_ks(ws_list=ws, ks_list=ks)
     visualise_pareto(ws, ks, pareto_indexes, bassin_vals, index_1)
 
+def ECG_one_step_recognition_vis():
+    fig, ax = plt.subplots()
+    bassin_vals = get_mini_ECG()
+    draw_ECG(ax, bassin_vals)
+    plt.show()
+
+    print("bassin_len = " + str(len(bassin_vals)))
+    index_1 = 25
+
+    index_predicted_ideal = 36
+    val_predicted_ideal = bassin_vals[index_predicted_ideal]
+
+    index_predicted = index_predicted_ideal
+    val_predicted = val_predicted_ideal
+    # ----------------------------------------------------------
+
+
+    ws = []
+    ks = []
+    allowed_indexes = list(range(index_1, len(bassin_vals)))
+    new_allowed_indexes = subselect_allowed_indexes(allowed_indexes, bassin_vals)
+    for real_index in new_allowed_indexes:
+        print(real_index)
+        w = eval_w_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
+        k = eval_k_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
+        ws.append(w)
+        ks.append(k)
+
+    visualise_on_signal(ws, ks, bassin_vals, new_allowed_indexes)
+
+    pareto = Pareto2d()
+    pareto_indexes = pareto.process_ws_ks(ws_list=ws, ks_list=ks)
+    scene_indexes = []
+    for ind in pareto_indexes:
+        scene_indexes.append( new_allowed_indexes[ind])
+
+    visualise_pareto(ws, ks, global_pareto_indexes=scene_indexes, local_indexes_pareto=pareto_indexes, bassin_vals=bassin_vals)
+
+def subselect_allowed_indexes(allowed_indexes, bassin):
+    # вариант 1: ищем экстремумы сигнала в разрешенной области и возвращаем их индексы (визуализируем их на сигнале)
+    extrs = ExtremumFinder(bassin).get_coords_extremums()
+    allowed_extrs = []
+    for coord in extrs:
+        if coord in allowed_indexes:
+            allowed_extrs.append(coord)
+    #fig, axs = plt.subplots()
+    #draw_ECG(axs, bassin)
+    #for coord in extrs:
+    #    axs.scatter(coord, 0, color='red')
+    #plt.show()
+
+    return allowed_extrs
+
 if __name__ == '__main__':
-    one_step_recognision()
+    ECG_one_step_recognition_vis()
 
