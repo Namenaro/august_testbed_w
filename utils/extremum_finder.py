@@ -102,7 +102,7 @@ class ExtremumFinder:
         d = {}
         for index in extrs:
             d[index] = self.signal[index]
-            return sorted(d, key=lambda k: d[k], reverse=True)
+        return sorted(d, key=lambda k: d[k], reverse=True)[0:N]
 
 
 
