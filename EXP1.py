@@ -1,5 +1,6 @@
 from utils import Pareto2d, Slayter2d, Distr, get_distr_of_min_statistics, mix_list, make_arrows, ExtremumFinder, get_mini_ECG, draw_ECG,  draw_vertical_line
 from scene import Scene
+from helpers import *
 
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import text
@@ -8,74 +9,6 @@ from copy import deepcopy
 # один шаг распознавания: заранее поставлени одна точка и предсказана для нее вторая связанная.
 # Задача построить парето кандидатов на распознавание этой второй точки.
 
-
-def eval_w_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, index_candidate):
-    u_err = abs(index_predicted-index_candidate)
-    prev_error = sum(list([abs(val) for val in bassin_vals]))
-    interpolation_err = get_interpolation_error(index_1, index_candidate, bassin_vals)
-    distr_bests = get_distr_of_mins_err(bassin_vals, index_fixed=index_1, u_err=u_err, segment_len=abs(index_1-index_candidate))
-    if prev_error == interpolation_err:
-        return 0
-
-    if prev_error > interpolation_err:
-        # w будет положительно
-        w = 1 - distr_bests.get_p_of_event(0, interpolation_err)
-        return w
-
-    # w будет отрицательно:
-    w = distr_bests.get_p_of_event(interpolation_err, distr_bests.get_max_val())
-    return -w
-
-def eval_k_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, index_candidate):
-    u_err = abs(index_candidate - index_predicted)
-    val_err = abs(val_predicted - bassin_vals[index_candidate])
-
-
-    vals_side = max(bassin_vals) - min(bassin_vals)
-    us_side = len(bassin_vals)
-    err = val_err/vals_side + u_err/us_side
-
-    return 1 - err
-
-
-def get_distr_of_mins_err(bassin_, index_fixed, u_err, segment_len):
-    bassin = deepcopy(bassin_)
-    # исключаем из бассейна уже учтенныйэлемент
-    fixed_val = bassin[index_fixed]
-    del bassin[index_fixed]
-    errs_sample = []
-    for i in range(200):
-        err_interpolation = get_random_interpolation_err(segment_len, bassin, fixed_val)
-        errs_sample.append(err_interpolation)
-    main_distr = Distr(errs_sample)
-    distr_min_subs_statistic = get_distr_of_min_statistics(main_distr, u_err+1)
-    return distr_min_subs_statistic
-
-def get_random_interpolation_err(segment_len, bassin, fixed_val):
-    # случайно переставляем элементы бассейна
-    mixed_bassin = mix_list(bassin)
-    mixed_bassin.append(fixed_val)
-    scene = Scene(mixed_bassin)
-
-    # конец интерполяции ставим в последнюю точку
-    name1 = scene.add_point(len(mixed_bassin) - 1)
-
-    # выбираем второй конец сегмента
-    # TODO его можно выбрать случайно (и тогда эта статистика переиспользуется всем и кандидатами), или же на расстоянии segment_len от последней точки
-    second_index = len(mixed_bassin) - 1 - segment_len
-
-    name_2 = scene.add_point(coord=second_index)
-    scene.add_parent(parent_name=name1, child_name=name_2)
-
-    return scene.get_err_sum()
-
-
-def get_interpolation_error(index1, index2, bassin_vals):
-    scene = Scene(bassin_vals)
-    name_1 = scene.add_point(coord=index1)
-    name_2 = scene.add_point(coord=index2)
-    scene.add_parent(parent_name=name_1, child_name=name_2)
-    return scene.get_err_sum()
 
 
 
@@ -131,7 +64,7 @@ def draw_pareto_on_plane(ws, ks, pareto_indexes):
 
 
 
-def ECG_one_step_recognition_vis():
+def ECG_one_step_recognition_vis(): # ПОЛУЧЕНИЕ ЛИСТОВ ДЛЯ РОСТКА
     fig, ax = plt.subplots()
     bassin_vals = get_mini_ECG()
     draw_ECG(ax, bassin_vals)
@@ -154,11 +87,14 @@ def ECG_one_step_recognition_vis():
     plt.show()
     # ----------------------------------------------------------
 
-
-    ws = []
-    ks = []
+    # ПЕРВИЧНЫЙ БЫСТРЫЙ ОТБОР КАНДИДАТОВ
     allowed_indexes = list(range(index_1, len(bassin_vals)))
     new_allowed_indexes = subselect_allowed_indexes(allowed_indexes, bassin_vals)
+
+    # ВТОРЫИЧНЫЙ (МЕДЛЕННЫЙ) ОТБОР КАНДИДАТОВ  (ИЗ БЫСТРО ВЫБРАННЫХ)
+    # ЭТАП 1: ОЦЕНКА  W, K
+    ws = []
+    ks = []
     for real_index in new_allowed_indexes:
         print(real_index)
         w = eval_w_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
@@ -168,6 +104,7 @@ def ECG_one_step_recognition_vis():
 
     visualise_on_signal(ws, ks, bassin_vals, new_allowed_indexes)
 
+    # ЭТАП 2: ЧИСТОВОЙ ВЫБОР ТОПА КАНДИДАТОВ ИЗ ОЦЕНЕННЫХ (МНОГОКРИТЕРИАЛЬНАЯ ЗАДАЧА ПОИСКА ЛУЧШИХ КОМПРОМИССОВ)
     pareto = Slayter2d()
     pareto_indexes = pareto.process_ws_ks(ws_list=ws, ks_list=ks)
     scene_indexes = []
@@ -176,20 +113,7 @@ def ECG_one_step_recognition_vis():
 
     visualise_pareto(ws, ks, global_pareto_indexes=scene_indexes, local_indexes_pareto=pareto_indexes, bassin_vals=bassin_vals)
 
-def subselect_allowed_indexes(allowed_indexes, bassin):
-    # вариант 1: ищем экстремумы сигнала в разрешенной области и возвращаем их индексы (визуализируем их на сигнале)
-    extrs = ExtremumFinder(bassin).get_coords_extremums()
-    allowed_extrs = []
-    for coord in extrs:
-        if coord in allowed_indexes:
-            allowed_extrs.append(coord)
-    #fig, axs = plt.subplots()
-    #draw_ECG(axs, bassin)
-    #for coord in extrs:
-    #    axs.scatter(coord, 0, color='red')
-    #plt.show()
 
-    return allowed_extrs
 
 if __name__ == '__main__':
     ECG_one_step_recognition_vis()
