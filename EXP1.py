@@ -1,4 +1,4 @@
-from utils import Pareto2d, Distr, get_distr_of_min_statistics, mix_list, make_arrows, ExtremumFinder, get_mini_ECG, draw_ECG
+from utils import Pareto2d, Slayter2d, Distr, get_distr_of_min_statistics, mix_list, make_arrows, ExtremumFinder, get_mini_ECG, draw_ECG,  draw_vertical_line
 from scene import Scene
 
 import matplotlib.pyplot as plt
@@ -129,48 +129,29 @@ def draw_pareto_on_plane(ws, ks, pareto_indexes):
 
 
 
-def toy_one_step_recognition_vis():
-    bassin_vals = [0, 1, 2, 4, 2, 1, 0, -1.2, 1, 1.5, 0, 0, 1,0, 0, -1, 1.5, 2]
-    print("bassin_len = " +str(len(bassin_vals)))
-    index_1 = 3
 
-    index_predicted = 6
-    val_predicted = 0
-    # ----------------------------------------------------------
-    # ЧАСТЬ_1: генератор точек-кандидатов на оценку. Самое тупое - бруофорс, то есть перебор всех координат в допустимой области
-    # ЧАСТЬ_2: для каждой точки оценка по 2 параметрам: w, k. Кто попадет в парето? Визуализация парето.
-
-    ws = []
-    ks = []
-    allowed_indexes = list(range(index_1, len(bassin_vals)))
-    for real_index in allowed_indexes:
-        print(real_index)
-        w = eval_w_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
-        k = eval_k_of_candidate(bassin_vals, index_1, index_predicted, val_predicted, real_index)
-        ws.append(w)
-        ks.append(k)
-
-    visualise_on_signal(ws, ks, bassin_vals, index_1)
-
-
-    pareto = Pareto2d()
-    pareto_indexes = pareto.process_ws_ks(ws_list=ws, ks_list=ks)
-    visualise_pareto(ws, ks, pareto_indexes, bassin_vals, index_1)
 
 def ECG_one_step_recognition_vis():
     fig, ax = plt.subplots()
     bassin_vals = get_mini_ECG()
     draw_ECG(ax, bassin_vals)
-    plt.show()
+
+
 
     print("bassin_len = " + str(len(bassin_vals)))
+
     index_1 = 25
+    draw_vertical_line(x=index_1, y=max(bassin_vals), ax=ax, label='index1', color='black')
 
     index_predicted_ideal = 36
     val_predicted_ideal = bassin_vals[index_predicted_ideal]
+    print("val -pred - ideal = " + str(val_predicted_ideal))
+    ax. scatter(index_predicted_ideal, val_predicted_ideal, color='orange', label='ideal prediction')
 
-    index_predicted = index_predicted_ideal
-    val_predicted = val_predicted_ideal
+    index_predicted = index_predicted_ideal+7
+    val_predicted = val_predicted_ideal+5
+    ax.scatter(index_predicted, val_predicted, color='blue', label='jittered_prediction')
+    plt.show()
     # ----------------------------------------------------------
 
 
@@ -187,7 +168,7 @@ def ECG_one_step_recognition_vis():
 
     visualise_on_signal(ws, ks, bassin_vals, new_allowed_indexes)
 
-    pareto = Pareto2d()
+    pareto = Slayter2d()
     pareto_indexes = pareto.process_ws_ks(ws_list=ws, ks_list=ks)
     scene_indexes = []
     for ind in pareto_indexes:

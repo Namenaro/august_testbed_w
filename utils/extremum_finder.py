@@ -94,4 +94,17 @@ class ExtremumFinder:
                 maxes_coords.append(index)
         return maxes_coords
 
+    def get_top_N_maxes(self, N):
+        extrs = self.get_coords_maxes()
+        if len(extrs) <=N:
+            return sorted(extrs, reverse=True) # по убыванию
+
+        d = {}
+        for index in extrs:
+            d[index] = self.signal[index]
+            return sorted(d, key=lambda k: d[k], reverse=True)
+
+
+
+
 

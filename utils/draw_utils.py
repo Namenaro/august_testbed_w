@@ -27,3 +27,7 @@ def draw_ECG(ax, signal):
     ax.plot(signal, 'o', label='vals', color="black",  markersize=2)
 
 
+def draw_vertical_line(ax, x, y, color=None, label=None):
+    if color is None:
+        color = 'red'
+    ax.vlines(x=x, ymin=0, ymax=y, colors=color, lw=2, alpha=0.5, label=label)
